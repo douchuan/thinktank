@@ -1,141 +1,70 @@
-# Hundred Schools Debate
+# CLAUDE.md — 诸子百家智囊团
 
-CrewAI-based multi-agent debate app. Each agent role-plays a Chinese philosophical school (Confucianism, Daoism, Legalism, etc.) and debates modern questions. **Every argument must cite actual classical text passages — no generated or paraphrased citations.**
+## 项目目标
 
-## Tech Stack
-- Python 3.12+
-- CrewAI (multi-agent orchestration)
-- LangChain/OpenAI-compatible LLM client (for manager_llm if needed)
-- Local vector store or keyword index for classical text retrieval
+这是一个用于学习 CrewAI 多智能体框架的 Python 项目。用户提交问题，儒家、法家、道家、兵家四个专家 Agent 分别依据本家的核心思想提出建议。
 
-## Project Structure
-```
-hundred-schools-debate/
-├── CLAUDE.md
-├── pyproject.toml
-├── .env.example
-├── src/
-│   ├── debate/
-│   │   ├── agents/          # One module per school (confucian.py, daoist.py, legalist.py)
-│   │   ├── tasks/           # Task definitions per debate round
-│   │   ├── tools/           # Classical text retrieval tool
-│   │   └── crew.py          # Crew assembly
-│   └── corpus/              # Classical texts (Lunyu, Daodejing, Han Feizi, etc.)
-│       └── index/           # Pre-built retrieval index
-└── tests/
-```
+## 技术约束
 
-## Architecture Rules
+- Python 版本固定在 `>=3.12,<3.13`。
+- 使用 `uv` 管理依赖和虚拟环境。
+- 使用 `pyproject.toml` 管理项目元数据与工具配置。
+- 使用 CrewAI 的 Agent、Task、Crew 和 Process 组织工作流。
+- 使用 Pydantic 描述结构化输出。
+- 使用 pytest 编写测试，Ruff 进行 lint 与格式检查。
+- API Key 等机密只能通过环境变量或本地 `.env` 提供；不得写入源码、测试样例或文档中的真实密钥。
+- 生产代码放在 `src/hundred_schools/`，测试放在 `tests/`。
 
-### Process: Sequential ONLY
-Use `Process.sequential`. **Never use `Process.hierarchical`** unless explicitly instructed. Hierarchical mode introduces a manager LLM that can re-delegate tasks indefinitely, causing the exact Repeat Thoughts spiral this project must avoid.
+## 产品行为
 
-### Delegation: OFF for debaters
-All debater agents must have `allow_delegation=False`. The judge agent also `allow_delegation=False`. Debate is a directed acyclic flow: each debater speaks once per round, then the judge evaluates. No agent may delegate to another.
+- 第一版提供命令行入口。
+- 用户问题作为所有专家任务的输入。
+- 四家智囊需要独立表达立场，不应强行把结论统一成一个答案。
+- 每条建议目标长度为 50～100 个汉字。
+- 每条建议使用自然的“总—分—总”结构：先给核心判断，再提供具体分析或行动建议，最后总结原则。
+- 输出使用中文，并标注流派名称。
+- 字数要求是目标约束；对不符合范围的输出应给出可理解的警告或校验结果，不应静默截断正文。
 
-### Citation: Retrieval-Augmented, never generative
-The LLM must **not** generate classical quotations from memory. Two approved patterns:
+## Agent 思想框架
 
-**Pattern A (small corpus):** Inject candidate passages into the Task `description`. Instruct: "Select at most 2 passages from the provided excerpts. If none are relevant, say so explicitly."
+### 儒家
+仁义礼智信、德治、以人为本、责任、信任、长期声誉与关系治理。
 
-**Pattern B (scale):** Give each debater agent a `ClassicalTextRetrievalTool`. The Task description instructs: "Use the retrieval tool to find relevant passages before forming your argument. Cite only passages returned by the tool."
+### 法家
+法、术、势，制度、权责、执行、激励约束与可衡量的结果。
 
-Reject any implementation where the LLM produces a quotation without a retrieval step or injected source list.
+### 道家
+道法自然、无为而治、顺势而为、减少过度干预与无效消耗。
 
-### Citation: retrieval and citation are separate concerns
-The text used to *find* a passage need not be the text used to *cite* it.
-- Retrieval index MAY use `modern_gloss` (or `theme_tags` / `concept_tags`) to improve matching against modern-Chinese debate questions.
-- `cited_passages` MUST contain only `original_text` (文言文), with its `source`.
-- Any tool returning retrieval results must label fields explicitly:
-  `original_text` (citable) vs `modern_gloss` (context only, NOT citable).
+### 兵家
+知己知彼、因势制胜、资源配置、竞争格局、时机、风险与进退策略。
 
-**Pattern B (scale), concrete requirements:** The `ClassicalTextRetrievalTool` MUST:
-1. Filter by `school` (agent's own school only) and, when possible, by
-   `theme_tags` / `concept_tags` derived from the debate question.
-2. Match using `modern_gloss` and/or tags — NOT raw `original_text` alone,
-   because classical Chinese vocabulary rarely matches modern-Chinese queries.
-3. Return entries with fields explicitly separated:
-   `original_text` + `source` (citable), and `modern_gloss` (context only).
+以上是服务于现代决策建议的简化角色设定，不应声称穷尽了传统学派的全部思想。
 
-Task description for Pattern B: "Cite only passages returned by the tool. Quote only from the `original_text` field; never cite `modern_gloss`."
+## 架构原则
 
-### Two indexes, not one
-Build and maintain two separate artifacts from the same JSONL corpus:
-- **Retrieval index** — built from `modern_gloss` + `theme_tags` + `concept_tags`. Used to *find* candidate passages for a modern-Chinese question.
-- **Citation corpus** — built from `original_text` + `source` only. Used to *verify* that every quoted passage actually exists in the corpus.
+- Agent 定义、Task 定义、Crew 编排、输出模型与 CLI 分层组织。
+- 第一版优先采用 `Process.sequential`，降低并发与调试复杂度。
+- 不要为了“看起来像多智能体”而把四个专家简单写成四次散乱的 LLM 调用；应通过 CrewAI 的编排抽象实现。
+- 保持代码清晰、类型标注完整，避免过度抽象。
+- 提示词中明确输出格式、立场边界和长度要求。
+- 允许通过环境变量配置模型，不在代码中硬编码某个模型供应商的密钥。
 
-Never merge these into a single index. The retrieval index optimizes for recall; the citation corpus optimizes for verifiability.
+## 当前版本不做的事情
 
-## Corpus Schema (JSONL)
+除非用户明确要求，不要在初始版本中加入：
+- Web 前端或 REST API
+- RAG、向量数据库或外部知识库
+- 长期记忆、复杂工具调用
+- 多轮辩论或复杂层级管理 Agent
+- 数据库、用户账号或多租户系统
 
-Each classical text is processed into JSONL entries with these fields:
+## 修改代码时
 
-```json
-{
-  "id": "lunyu-xueer-01",
-  "source": "《论语·学而》",
-  "school": "儒家",
-  "original_text": "子曰：学而时习之，不亦说乎？...",
-  "modern_gloss": "孔子说：学了又按时温习实践...",
-  "theme_tags": ["学习", "实践", "君子", "修养"],
-  "concept_tags": ["学", "习", "君子", "愠"],
-  "debate_angles": ["可用于论证'学习与实践结合'的价值", "..."],
-  "notes": "适合作为儒家'修身'立场的开篇引证。"
-}
-```
-
-Field roles:
-- `original_text` + `source`: the only fields allowed in `cited_passages`.
-- `modern_gloss`: retrieval aid and Agent comprehension aid; never citable.
-- `theme_tags` / `concept_tags`: filtering and keyword matching.
-- `debate_angles`: hint to the Agent on how the passage may be used.
-- `notes`: human-facing maintenance notes only.
-
-## Agent Conventions
-- `role`: School name + "Debater" (e.g., "Confucian Debater")
-- `goal`: "Argue from the [School] perspective on the given question, citing classical sources"
-- `backstory`: 2-3 sentences on core concepts (e.g., ren, li, wuwei, fa/shu/shi). Keep it short — verbose backstories dilute routing signals and waste tokens.
-- `allow_delegation=False` — always.
-
-## Task Conventions
-- `expected_output`: Must be machine-checkable where possible. For arguments: a structured format with `claim`, `reasoning`, `cited_passages` (list of exact quotes from `original_text` + `source`). For judge: `winner` (school name or "draw") + `rationale`.
-- Do **not** write subjective criteria like "compelling argument" or "high quality". The judge LLM will loop trying to satisfy vague standards.
-
-## Workflow (for feature work)
-1. Read existing agent/task modules before adding a new school.
-2. For new school: create `agents/<school>.py`, add to `crew.py`, process the school's classical text into JSONL, then rebuild both indexes (retrieval + citation).
-3. For citation changes: update the retrieval tool, the Task description prompt, and the citation verification test **together**. Never change one without the others.
-4. Run `pytest tests/test_citation.py` after any citation-related change. This test verifies every cited passage exists in the citation corpus.
-
-## Commands
-```bash
-# Run a debate
-python -m src.debate.crew --question "Should AI have legal rights?"
-
-# Process a classical text into JSONL
-python scripts/process_classics.py --book lunyu --input lunyu.txt --output corpus/lunyu.jsonl
-
-# Build retrieval index (from modern_gloss + tags, for matching modern questions)
-python scripts/build_index.py --mode retrieval
-
-# Build citation corpus (original_text + source only, used for verification)
-python scripts/build_index.py --mode citation
-
-# Run citation integrity tests
-pytest tests/test_citation.py -v
-```
-
-## What NOT to do
-- Do not add `allow_delegation=True` to any agent without explicit instruction.
-- Do not change `Process.sequential` to hierarchical.
-- Do not let an agent produce a `cited_passages` field without a preceding retrieval call or injected source list in the same task context.
-- Do not write `expected_output` with words like "good", "compelling", "high-quality", "convincing".
-- Do not index `original_text` alone for retrieval. Always build the retrieval index from `modern_gloss` / tags.
-- Do not allow `modern_gloss` content to appear inside `cited_passages`.
-- Do not merge the retrieval index and the citation corpus into a single artifact.
-
-## Known Pitfalls (from prior experience)
-- **Repeat Thoughts spiral**: Caused by vague `expected_output` + delegation loops. Always make output criteria enumerable.
-- **Citation hallucination**: LLMs invent plausible-sounding classical quotes. The retrieval tool is non-negotiable for citation fields, and `cited_passages` must be verified against the citation corpus.
-- **Manager re-delegation**: Hierarchical process managers re-assign tasks when unsatisfied. Sequential + delegation off prevents this structurally.
-- **Classical-Chinese retrieval miss**: Indexing only `original_text` causes low recall against modern-Chinese questions (documented ~0.40 vs ~0.81 hit@10 when using translations for retrieval). Always build the retrieval index from `modern_gloss` / tags, while keeping citation output strictly `original_text`.
+1. 先阅读相关模块与测试，再进行修改。
+2. 新功能应补充相应测试；尽量将单元测试与真实模型调用分离。
+3. 不要在自动化测试中默认调用付费模型 API。
+4. 修改依赖时同步更新 `pyproject.toml` 与相关文档。
+5. 完成后运行 `uv run pytest`、`uv run ruff check .` 和 `uv run ruff format --check .`（环境允许时）。
+6. 若命令未运行或因环境缺失失败，明确说明，不得声称测试通过。
+7. 文档与代码行为保持一致。
