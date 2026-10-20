@@ -1,70 +1,70 @@
-# CLAUDE.md — 诸子百家智囊团
+# CLAUDE.md — Hundred Schools Advisory
 
-## 项目目标
+## Project Goal
 
-这是一个用于学习 CrewAI 多智能体框架的 Python 项目。用户提交问题，儒家、法家、道家、兵家四个专家 Agent 分别依据本家的核心思想提出建议。
+This is a Python project for learning the CrewAI multi-agent framework. When the user submits a question, four expert Agents — Confucianism, Legalism, Taoism, and Sunzi's Art of War — each provide advice based on their respective philosophical framework.
 
-## 技术约束
+## Technical Constraints
 
-- Python 版本固定在 `>=3.12,<3.13`。
-- 使用 `uv` 管理依赖和虚拟环境。
-- 使用 `pyproject.toml` 管理项目元数据与工具配置。
-- 使用 CrewAI 的 Agent、Task、Crew 和 Process 组织工作流。
-- 使用 Pydantic 描述结构化输出。
-- 使用 pytest 编写测试，Ruff 进行 lint 与格式检查。
-- API Key 等机密只能通过环境变量或本地 `.env` 提供；不得写入源码、测试样例或文档中的真实密钥。
-- 生产代码放在 `src/hundred_schools/`，测试放在 `tests/`。
+- Python version pinned to `>=3.12,<3.13`.
+- Uses `uv` for dependency and virtual environment management.
+- Uses `pyproject.toml` for project metadata and tool configuration.
+- Uses CrewAI's Agent, Task, Crew, and Process to orchestrate workflows.
+- Uses Pydantic to describe structured output.
+- Uses pytest for tests, Ruff for linting and format checking.
+- API Keys and other secrets must only be provided via environment variables or a local `.env` file; never write real keys into source code, test cases, or documentation.
+- Production code lives in `src/hundred_schools/`, tests in `tests/`.
 
-## 产品行为
+## Product Behavior
 
-- 第一版提供命令行入口。
-- 用户问题作为所有专家任务的输入。
-- 四家智囊需要独立表达立场，不应强行把结论统一成一个答案。
-- 每条建议目标长度为 50～100 个汉字。
-- 每条建议使用自然的“总—分—总”结构：先给核心判断，再提供具体分析或行动建议，最后总结原则。
-- 输出使用中文，并标注流派名称。
-- 字数要求是目标约束；对不符合范围的输出应给出可理解的警告或校验结果，不应静默截断正文。
+- The first version provides a command-line interface.
+- The user question is passed as input to all expert tasks.
+- Each school expresses its position independently; conclusions should not be forced into a single unified answer.
+- Each advice item targets 50–100 Chinese characters.
+- Each advice item follows a natural "thesis–analysis–conclusion" structure: first give a core judgment, then provide specific analysis or actionable advice, and finally summarize the principle.
+- Output is in English, with the school name labeled.
+- The character count is a target constraint; outputs that do not meet the range should produce a readable warning or validation result, not silently truncate the body.
 
-## Agent 思想框架
+## Agent Thought Frameworks
 
-### 儒家
-仁义礼智信、德治、以人为本、责任、信任、长期声誉与关系治理。
+### Confucianism
+Benevolence, righteousness, ritual, wisdom, trust; virtue-based governance; people-centered approach; responsibility; trust; long-term reputation and relationship governance.
 
-### 法家
-法、术、势，制度、权责、执行、激励约束与可衡量的结果。
+### Legalism
+Law, administrative technique, positional power; institutional design; authority and responsibility alignment; execution; incentives and constraints; measurable outcomes.
 
-### 道家
-道法自然、无为而治、顺势而为、减少过度干预与无效消耗。
+### Taoism
+Following the Way of nature; wuwei (non-action); going with the momentum; reducing over-intervention and wasteful consumption.
 
-### 兵家
-知己知彼、因势制胜、资源配置、竞争格局、时机、风险与进退策略。
+### Sunzi's Art of War (Strategist)
+Know the enemy and know yourself; winning through situational advantage; resource allocation; competitive landscape; timing; risk; advance and retreat strategy.
 
-以上是服务于现代决策建议的简化角色设定，不应声称穷尽了传统学派的全部思想。
+The above is a simplified role setup for modern decision-making contexts and should not claim to exhaustively represent each school's philosophy.
 
-## 架构原则
+## Architecture Principles
 
-- Agent 定义、Task 定义、Crew 编排、输出模型与 CLI 分层组织。
-- 第一版优先采用 `Process.sequential`，降低并发与调试复杂度。
-- 不要为了“看起来像多智能体”而把四个专家简单写成四次散乱的 LLM 调用；应通过 CrewAI 的编排抽象实现。
-- 保持代码清晰、类型标注完整，避免过度抽象。
-- 提示词中明确输出格式、立场边界和长度要求。
-- 允许通过环境变量配置模型，不在代码中硬编码某个模型供应商的密钥。
+- Agent definitions, Task definitions, Crew orchestration, output models, and CLI are organized in layers.
+- Prefer `Process.sequential` for the first version to reduce concurrency and debugging complexity.
+- Do not turn four experts into four scattered LLM calls just to "look like multi-agent"; achieve it through CrewAI's orchestration abstractions.
+- Keep code clear, well-typed, and avoid over-abstraction.
+- Prompts should clearly specify output format, stance boundaries, and length requirements.
+- Allow model configuration via environment variables; do not hardcode any model provider's key in code.
 
-## 当前版本不做的事情
+## Things Not Done in the Current Version
 
-除非用户明确要求，不要在初始版本中加入：
-- Web 前端或 REST API
-- RAG、向量数据库或外部知识库
-- 长期记忆、复杂工具调用
-- 多轮辩论或复杂层级管理 Agent
-- 数据库、用户账号或多租户系统
+Unless the user explicitly requests, do not add these in the initial version:
+- Web frontend or REST API
+- RAG, vector databases, or external knowledge bases
+- Long-term memory, complex tool calling
+- Multi-round debate or complex hierarchy manager agents
+- Databases, user accounts, or multi-tenant systems
 
-## 修改代码时
+## When Modifying Code
 
-1. 先阅读相关模块与测试，再进行修改。
-2. 新功能应补充相应测试；尽量将单元测试与真实模型调用分离。
-3. 不要在自动化测试中默认调用付费模型 API。
-4. 修改依赖时同步更新 `pyproject.toml` 与相关文档。
-5. 完成后运行 `uv run pytest`、`uv run ruff check .` 和 `uv run ruff format --check .`（环境允许时）。
-6. 若命令未运行或因环境缺失失败，明确说明，不得声称测试通过。
-7. 文档与代码行为保持一致。
+1. Read relevant modules and tests before making changes.
+2. New features should have corresponding tests; prefer separating unit tests from real model calls.
+3. Do not call paid model APIs in automated tests by default.
+4. When updating dependencies, sync `pyproject.toml` and related documentation.
+5. After changes, run `uv run pytest`, `uv run ruff check .`, and `uv run ruff format --check .` (when the environment allows).
+6. If the command does not run or fails due to a missing environment, state it clearly; do not claim tests passed.
+7. Keep documentation and code behavior consistent.
