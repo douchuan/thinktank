@@ -347,7 +347,7 @@ def create_app() -> FastAPI:
                 f"你是{school.name}智囊助手。以下是一个对话的历史摘要。\n"
                 f"请将以下 {len(user_msgs)} 轮用户问题压缩为一段 50～80 字的摘要，\n"
                 f"保留核心问题和讨论要点。\n\n"
-                + "\n".join(f"- Q{i+1}: {q}" for i, q in enumerate(user_msgs[:-3]))
+                + "\n".join(f"- Q{i + 1}: {q}" for i, q in enumerate(user_msgs[:-3]))
             )
 
             try:
