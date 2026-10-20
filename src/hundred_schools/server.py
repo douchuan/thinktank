@@ -122,6 +122,23 @@ class HistoryResponse(BaseModel):
     history: list[MessageResponse]
 
 
+class SchoolReply(BaseModel):
+    content: str
+
+
+class BroadcastRequest(BaseModel):
+    message: str
+
+
+class BroadcastResponse(BaseModel):
+    responses: dict[str, SchoolReply]
+
+
+class CompressResponse(BaseModel):
+    compressed: bool
+    summary: str
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -258,6 +275,96 @@ def create_app() -> FastAPI:
                 MessageResponse(role=m.role, content=m.content) for m in school_session.history
             ],
         )
+
+    @app.post("/sessions/{session_id}/broadcast", response_model=BroadcastResponse)
+    async def broadcast(session_id: str, req: BroadcastRequest):
+        """Send a message to all four schools simultaneously and return all responses."""
+        session = _sessions.get(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        responses: dict[str, SchoolReply] = {}
+
+        for school in SCHOOLS:
+            agent = agents[school.id]
+            school_session = session.get_school_session(school.id)
+
+            system_prompt = (
+                f"你是{school.name}智囊。请基于{school.name}思想为用户回答问题。\n\n"
+                f"角色：{agent.role}\n"
+                f"目标：{agent.goal}\n"
+                f"背景：{agent.backstory}\n\n"
+                f"要求：\n"
+                f"1. 使用中文，建议正文目标为 50～100 个汉字。\n"
+                f"2. 采用自然的总—分—总结构。\n"
+                f"3. 给出具体、可执行的建议。\n"
+                f"4. 只输出建议正文，不要添加标题、字数说明或 Markdown 列表。"
+            )
+
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in school_session.history:
+                messages.append({"role": msg.role, "content": msg.content})
+            messages.append({"role": "user", "content": req.message})
+
+            try:
+                assistant_content = llm.call(messages)
+                if not isinstance(assistant_content, str):
+                    assistant_content = str(assistant_content)
+            except Exception as e:
+                assistant_content = f"回复失败：{e}"
+
+            school_session.history.append(Message(role="user", content=req.message))
+            school_session.history.append(Message(role="assistant", content=assistant_content))
+            responses[school.id] = SchoolReply(content=assistant_content)
+
+        return BroadcastResponse(responses=responses)
+
+    @app.post("/sessions/{session_id}/compress", response_model=CompressResponse)
+    async def compress_session(session_id: str):
+        """Compress conversation history for all schools by summarizing.
+
+        Keeps the latest 3 rounds per school and prepends a summary of earlier rounds.
+        """
+        session = _sessions.get(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        summary_parts: list[str] = []
+
+        for school in SCHOOLS:
+            school_session = session.schools.get(school.id)
+            if not school_session or not school_session.history:
+                continue
+
+            # Collect all user messages for this school
+            user_msgs = [m.content for m in school_session.history if m.role == "user"]
+            if len(user_msgs) <= 6:
+                # Not enough to compress — keep as-is
+                continue
+
+            # Build a summary prompt
+            compress_prompt = (
+                f"你是{school.name}智囊助手。以下是一个对话的历史摘要。\n"
+                f"请将以下 {len(user_msgs)} 轮用户问题压缩为一段 50～80 字的摘要，\n"
+                f"保留核心问题和讨论要点。\n\n"
+                + "\n".join(f"- Q{i+1}: {q}" for i, q in enumerate(user_msgs[:-3]))
+            )
+
+            try:
+                summary = llm.call([{"role": "user", "content": compress_prompt}])
+                if not isinstance(summary, str):
+                    summary = str(summary)
+                summary_parts.append(f"【{school.name}历史摘要】{summary}")
+            except Exception:
+                summary_parts.append(f"【{school.name}历史摘要】（压缩失败，保留原文）")
+                continue
+
+            # Keep the latest 3 rounds (6 messages: 3 user + 3 assistant)
+            school_session.history = school_session.history[-6:]
+
+        summary_text = "\n".join(summary_parts) if summary_parts else "无需压缩"
+
+        return CompressResponse(compressed=bool(summary_parts), summary=summary_text)
 
     return app
 
