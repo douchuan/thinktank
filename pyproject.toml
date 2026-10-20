@@ -8,6 +8,7 @@ dependencies = [
   "crewai>=0.100.0",
   "pydantic>=2.7.0",
   "python-dotenv>=1.0.0",
+  "langfuse>=2.50.0",
 ]
 
 [project.optional-dependencies]

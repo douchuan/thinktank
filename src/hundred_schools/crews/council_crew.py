@@ -21,7 +21,7 @@ def create_llm(
 ) -> LLM:
     """Create a configured LLM instance."""
     options = {
-        "model": model, 
+        "model": model,
         "timeout": 60,
         "max_retries": 0,
     }

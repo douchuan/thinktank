@@ -10,6 +10,7 @@ from crewai import CrewOutput
 from hundred_schools.config import Settings
 from hundred_schools.crews.council_crew import build_council_crew
 from hundred_schools.models.response import AdviserOpinion, length_warning
+from hundred_schools.observability import setup_langfuse
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,6 +57,7 @@ def main() -> int:
 
     try:
         settings = Settings.from_env()
+        setup_langfuse()
         crew = build_council_crew(settings)
         result = crew.kickoff(inputs={"question": question})
         _print_output(result)
