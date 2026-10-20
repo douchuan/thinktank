@@ -14,7 +14,7 @@ def create_advice_task(agent: Agent, school: str) -> Task:
             "User question: {question}\n\n"
             f"Your school: {school}\n"
             "Requirements:\n"
-            "1. Respond in English; target 50-100 Chinese characters for the body.\n"
+            "1. Respond in English; target 80-150 English words for the body.\n"
             "2. Use a natural thesis-analysis-conclusion structure: first state the "
             "core judgment, then provide specific analysis or actionable advice, "
             "and finally summarize the principle. Do not write structural labels "
@@ -27,7 +27,7 @@ def create_advice_task(agent: Agent, school: str) -> Task:
             "or Markdown lists."
         ),
         expected_output=(
-            f"A piece of English advice, targeting 50-100 Chinese characters, "
+            f"A piece of English advice, targeting 80-150 English words, "
             f"structured as thesis-analysis-conclusion, and reflecting the core "
             f"thought of {school}."
         ),

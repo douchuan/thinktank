@@ -20,7 +20,7 @@ This is a Python project for learning the CrewAI multi-agent framework. When the
 - The first version provides a command-line interface.
 - The user question is passed as input to all expert tasks.
 - Each school expresses its position independently; conclusions should not be forced into a single unified answer.
-- Each advice item targets 50–100 Chinese characters.
+- Each advice item targets 80–150 English words.
 - Each advice item follows a natural "thesis–analysis–conclusion" structure: first give a core judgment, then provide specific analysis or actionable advice, and finally summarize the principle.
 - Output is in English, with the school name labeled.
 - The character count is a target constraint; outputs that do not meet the range should produce a readable warning or validation result, not silently truncate the body.
