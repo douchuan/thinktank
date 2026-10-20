@@ -8,7 +8,7 @@
 - CrewAI `Agent`、`Task`、`Crew` 与 `Process.sequential` 编排。
 - 使用 Pydantic 定义结果模型。
 - 输出目标长度为每家 50～100 个汉字，并要求采用总—分—总结构。
-- 提供 CLI、基础单元测试、Ruff 配置与 `.env.example`。
+- 提供 CLI、Web UI、基础单元测试、Ruff 配置与 `.env.example`。
 
 > 字数与文章结构通过提示词引导，并由程序做基础校验；大模型输出不保证每次都严格符合要求。项目会对字数异常发出警告，不会静默截断建议。
 
@@ -47,6 +47,16 @@ uv run hundred-schools "创业初期，应该优先追求增长还是控制风�
 uv run hundred-schools
 ```
 
+### Web UI
+
+Web 界面为每家智囊提供独立的对话窗口，支持多轮追问，各学派对话历史互不影响。
+
+```bash
+uv run hundred-schools-web
+```
+
+启动后打开浏览器访问 `http://localhost:8000`。
+
 ## 开发与测试
 
 ```bash
@@ -69,12 +79,16 @@ uv run ruff format --check .
 │   ├── tasks/        # Task 定义
 │   ├── models/       # Pydantic 输出模型
 │   ├── config.py
-│   └── main.py
+│   ├── main.py       # CLI 入口
+│   ├── server.py     # Web UI 后端
+│   └── static/       # Web UI 前端
+│       └── index.html
 └── tests/
 ```
 
 ## 设计边界
 
-- 第一版使用顺序式执行，让四家智囊分别完成建议任务。
-- 暂不引入工具调用、RAG、长期记忆、Web API 或多轮辩论。
+- CLI 使用顺序式执行，四家智囊分别完成建议任务。
+- Web UI 为每家提供独立对话窗口，支持多轮追问，对话历史隔离。
+- 暂不引入工具调用、RAG、长期记忆或多轮辩论。
 - “诸子百家”的人物与思想设定是面向现代决策场景的概括，不代表对各学派思想的穷尽性解释。
