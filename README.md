@@ -28,9 +28,9 @@ cp .env.example .env
 编辑 `.env`，配置模型提供商和密钥。例如，使用 OpenAI 兼容接口：
 
 ```dotenv
-API_KEY=your-api-key
-MODEL=qwen3.6-plus
-BASE_URL=http://localhost:8000/v1
+API_KEY=api-key
+MODEL=deepseek-v4-1-flash-economy-261017
+BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ```
 
 `MODEL` 使用 LiteLLM/CrewAI 支持的模型标识。不同提供商可能需要额外环境变量，具体请参照所用模型提供商及 CrewAI 文档。
