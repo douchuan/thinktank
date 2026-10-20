@@ -9,19 +9,27 @@ def create_advice_task(agent: Agent, school: str) -> Task:
     """Create a concise, school-specific advice task."""
     return Task(
         description=(
-            "请针对以下用户问题，给出符合你所属学派思想的建议。\n\n"
-            "用户问题：{question}\n\n"
-            f"你的学派：{school}\n"
-            "要求：\n"
-            "1. 使用中文，建议正文目标为 50～100 个汉字。\n"
-            "2. 采用自然的总—分—总结构：先提出核心判断，再给出具体分析或行动建议，"
-            "最后总结原则。不要写出“总、分、总”等结构标签。\n"
-            "3. 必须体现本学派的分析方式，给出具体、可执行的建议。\n"
-            "4. 不要假装代表其他学派，不要强行追求各家结论一致。\n"
-            "5. 只输出建议正文，不要添加标题、字数说明或 Markdown 列表。"
+            "Based on the user question below, provide advice consistent with your "
+            "school's philosophical framework.\n\n"
+            "User question: {question}\n\n"
+            f"Your school: {school}\n"
+            "Requirements:\n"
+            "1. Respond in English; target 50-100 Chinese characters for the body.\n"
+            "2. Use a natural thesis-analysis-conclusion structure: first state the "
+            "core judgment, then provide specific analysis or actionable advice, "
+            "and finally summarize the principle. Do not write structural labels "
+            "such as 'thesis', 'analysis', or 'conclusion'.\n"
+            "3. Must reflect your school's analytical approach and give concrete, "
+            "actionable advice.\n"
+            "4. Do not pretend to represent other schools; do not force alignment "
+            "across different schools' conclusions.\n"
+            "5. Output only the advice body; do not add headings, character counts, "
+            "or Markdown lists."
         ),
         expected_output=(
-            f"一段中文建议，目标 50～100 个汉字，结构为总—分—总，且体现{school}的核心思想。"
+            f"A piece of English advice, targeting 50-100 Chinese characters, "
+            f"structured as thesis-analysis-conclusion, and reflecting the core "
+            f"thought of {school}."
         ),
         agent=agent,
     )

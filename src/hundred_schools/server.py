@@ -43,10 +43,10 @@ class SchoolMeta:
 
 
 SCHOOLS: list[SchoolMeta] = [
-    SchoolMeta("confucian", "儒家", create_confucian_agent),
-    SchoolMeta("legalist", "法家", create_legalist_agent),
-    SchoolMeta("taoist", "道家", create_taoist_agent),
-    SchoolMeta("strategist", "兵家", create_strategist_agent),
+    SchoolMeta("confucian", "Confucian", create_confucian_agent),
+    SchoolMeta("legalist", "Legalist", create_legalist_agent),
+    SchoolMeta("taoist", "Taoist", create_taoist_agent),
+    SchoolMeta("strategist", "Strategist", create_strategist_agent),
 ]
 
 SCHOOL_MAP = {s.id: s for s in SCHOOLS}
@@ -156,7 +156,7 @@ def _build_llm(settings: Settings) -> LLM:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    app = FastAPI(title="诸子百家智囊团")
+    app = FastAPI(title="Hundred Schools Advisory")
 
     app.add_middleware(
         CORSMiddleware,
@@ -220,15 +220,17 @@ def create_app() -> FastAPI:
 
         # Build system prompt from agent's role/goal/backstory
         system_prompt = (
-            f"你是{school.name}智囊。请基于{school.name}思想为用户回答问题。\n\n"
-            f"角色：{agent.role}\n"
-            f"目标：{agent.goal}\n"
-            f"背景：{agent.backstory}\n\n"
-            f"要求：\n"
-            f"1. 使用中文，建议正文目标为 50～100 个汉字。\n"
-            f"2. 采用自然的总—分—总结构。\n"
-            f"3. 给出具体、可执行的建议。\n"
-            f"4. 只输出建议正文，不要添加标题、字数说明或 Markdown 列表。"
+            f"You are a {school.name} adviser. Answer the user's question based on "
+            f"{school.name} thought.\n\n"
+            f"Role: {agent.role}\n"
+            f"Goal: {agent.goal}\n"
+            f"Background: {agent.backstory}\n\n"
+            f"Requirements:\n"
+            f"1. Respond in English; target 50-100 Chinese characters for the body.\n"
+            f"2. Use a natural thesis-analysis-conclusion structure.\n"
+            f"3. Provide concrete, actionable advice.\n"
+            f"4. Output only the advice body; do not add headings, character counts, "
+            f"or Markdown lists."
         )
 
         # Build message list with system prompt + history
@@ -290,15 +292,17 @@ def create_app() -> FastAPI:
             school_session = session.get_school_session(school.id)
 
             system_prompt = (
-                f"你是{school.name}智囊。请基于{school.name}思想为用户回答问题。\n\n"
-                f"角色：{agent.role}\n"
-                f"目标：{agent.goal}\n"
-                f"背景：{agent.backstory}\n\n"
-                f"要求：\n"
-                f"1. 使用中文，建议正文目标为 50～100 个汉字。\n"
-                f"2. 采用自然的总—分—总结构。\n"
-                f"3. 给出具体、可执行的建议。\n"
-                f"4. 只输出建议正文，不要添加标题、字数说明或 Markdown 列表。"
+                f"You are a {school.name} adviser. Answer the user's question based on "
+                f"{school.name} thought.\n\n"
+                f"Role: {agent.role}\n"
+                f"Goal: {agent.goal}\n"
+                f"Background: {agent.backstory}\n\n"
+                f"Requirements:\n"
+                f"1. Respond in English; target 50-100 Chinese characters for the body.\n"
+                f"2. Use a natural thesis-analysis-conclusion structure.\n"
+                f"3. Provide concrete, actionable advice.\n"
+                f"4. Output only the advice body; do not add headings, character counts, "
+                f"or Markdown lists."
             )
 
             messages = [{"role": "system", "content": system_prompt}]
@@ -311,7 +315,7 @@ def create_app() -> FastAPI:
                 if not isinstance(assistant_content, str):
                     assistant_content = str(assistant_content)
             except Exception as e:
-                assistant_content = f"回复失败：{e}"
+                assistant_content = f"Reply failed: {e}"
 
             school_session.history.append(Message(role="user", content=req.message))
             school_session.history.append(Message(role="assistant", content=assistant_content))
@@ -344,9 +348,11 @@ def create_app() -> FastAPI:
 
             # Build a summary prompt
             compress_prompt = (
-                f"你是{school.name}智囊助手。以下是一个对话的历史摘要。\n"
-                f"请将以下 {len(user_msgs)} 轮用户问题压缩为一段 50～80 字的摘要，\n"
-                f"保留核心问题和讨论要点。\n\n"
+                f"You are a {school.name} adviser assistant. Below is a conversation "
+                f"history.\n"
+                f"Please compress the following {len(user_msgs)} rounds of user "
+                f"questions into a 50-80 character summary,\n"
+                f"preserving the core issues and discussion points.\n\n"
                 + "\n".join(f"- Q{i + 1}: {q}" for i, q in enumerate(user_msgs[:-3]))
             )
 
@@ -354,15 +360,17 @@ def create_app() -> FastAPI:
                 summary = llm.call([{"role": "user", "content": compress_prompt}])
                 if not isinstance(summary, str):
                     summary = str(summary)
-                summary_parts.append(f"【{school.name}历史摘要】{summary}")
+                summary_parts.append(f"[{school.name} History Summary] {summary}")
             except Exception:
-                summary_parts.append(f"【{school.name}历史摘要】（压缩失败，保留原文）")
+                summary_parts.append(
+                    f"[{school.name} History Summary] (compression failed, keeping original)"
+                )
                 continue
 
             # Keep the latest 3 rounds (6 messages: 3 user + 3 assistant)
             school_session.history = school_session.history[-6:]
 
-        summary_text = "\n".join(summary_parts) if summary_parts else "无需压缩"
+        summary_text = "\n".join(summary_parts) if summary_parts else "No compression needed"
 
         return CompressResponse(compressed=bool(summary_parts), summary=summary_text)
 

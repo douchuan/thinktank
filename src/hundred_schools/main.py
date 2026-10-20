@@ -17,27 +17,29 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         prog="hundred-schools",
-        description="向诸子百家智囊团提问，获取不同思想流派的建议。",
+        description=(
+            "Ask the Hundred Schools Advisory for advice from different philosophical traditions."
+        ),
     )
-    parser.add_argument("question", nargs="?", help="希望智囊团分析的问题")
+    parser.add_argument("question", nargs="?", help="The question you want the advisory to analyze")
     return parser.parse_args()
 
 
 def _print_output(result: CrewOutput) -> None:
     """Render CrewAI task outputs in task order."""
     outputs = result.tasks_output
-    schools = ["儒家", "法家", "道家", "兵家"]
+    schools = ["Confucian", "Legalist", "Taoist", "Strategist"]
     if len(outputs) != len(schools):
-        print(f"提示：预期得到 {len(schools)} 条建议，实际得到 {len(outputs)} 条。")
+        print(f"Note: expected {len(schools)} advice items, got {len(outputs)}.")
 
     for index, task_output in enumerate(outputs):
-        school = schools[index] if index < len(schools) else f"智囊 {index + 1}"
+        school = schools[index] if index < len(schools) else f"Adviser {index + 1}"
         advice = str(task_output.raw).strip()
         opinion = AdviserOpinion(school=school, advice=advice)
-        print(f"\n【{opinion.school}智囊】\n{opinion.advice}")
+        print(f"\n[{opinion.school} Adviser]\n{opinion.advice}")
         warning = length_warning(opinion)
         if warning:
-            print(f"  [长度提示] {warning}")
+            print(f"  [Length note] {warning}")
 
 
 def main() -> int:
@@ -46,13 +48,13 @@ def main() -> int:
     question = (args.question or "").strip()
     if not question:
         try:
-            question = input("请输入希望诸子百家分析的问题：").strip()
+            question = input("Enter a question for the Hundred Schools to analyze: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n已取消。", file=sys.stderr)
+            print("\nCancelled.", file=sys.stderr)
             return 130
 
     if not question:
-        print("问题不能为空。", file=sys.stderr)
+        print("Question cannot be empty.", file=sys.stderr)
         return 2
 
     try:
@@ -62,8 +64,11 @@ def main() -> int:
         result = crew.kickoff(inputs={"question": question})
         _print_output(result)
     except Exception as exc:  # CLI boundary: show a concise actionable failure.
-        print(f"运行失败：{exc}", file=sys.stderr)
-        print("请检查 .env 中的模型配置、API Key 和网络连接。", file=sys.stderr)
+        print(f"Run failed: {exc}", file=sys.stderr)
+        print(
+            "Please check your model configuration in .env, API Key, and network connection.",
+            file=sys.stderr,
+        )
         return 1
     return 0
 

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>诸子百家智囊团</title>
+<title>Hundred Schools Advisory</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -315,15 +315,15 @@
 <div id="error-banner" class="error-banner"></div>
 
 <header>
-  <h1>诸子百家智囊团</h1>
-  <button id="new-session-btn">新对话</button>
+  <h1>Hundred Schools Advisory</h1>
+  <button id="new-session-btn">New Chat</button>
 </header>
 
 <div class="grid" id="grid"></div>
 
 <div class="input-area">
-  <textarea id="user-input" rows="1" placeholder="输入你的问题…" disabled></textarea>
-  <button class="send-btn" id="send-btn" disabled>发送</button>
+  <textarea id="user-input" rows="1" placeholder="Type your question…" disabled></textarea>
+  <button class="send-btn" id="send-btn" disabled>Send</button>
 </div>
 
 <script>
@@ -358,7 +358,7 @@ function showError(msg) {
 // ---- API ----
 async function createSession() {
   const res = await fetch(`${API}/sessions`, { method: 'POST' });
-  if (!res.ok) throw new Error(`创建会话失败: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);
   return res.json();
 }
 
@@ -368,13 +368,13 @@ async function broadcastMessage(message) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message }),
   });
-  if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 }
 
 async function compressSession() {
   const res = await fetch(`${API}/sessions/${sessionId}/compress`, { method: 'POST' });
-  if (!res.ok) throw new Error(`压缩失败: ${res.status}`);
+  if (!res.ok) throw new Error(`Compression failed: ${res.status}`);
   return res.json();
 }
 
@@ -407,7 +407,7 @@ function renderGrid() {
     // Toggle switch
     const label = document.createElement('label');
     label.className = 'toggle';
-    label.title = `开关 ${s.name}`;
+    label.title = `Toggle ${s.name}`;
 
     const toggleInput = document.createElement('input');
     toggleInput.type = 'checkbox';
@@ -423,7 +423,7 @@ function renderGrid() {
     const emptyEl = document.createElement('div');
     emptyEl.className = 'empty-state';
     emptyEl.id = `empty-${s.id}`;
-    emptyEl.innerHTML = `等待提问…`;
+    emptyEl.innerHTML = `Awaiting a question…`;
 
     // Toggle switch handler
     toggleInput.addEventListener('change', () => {
@@ -502,7 +502,7 @@ async function handleSend() {
 
   const activeSchools = schools.filter(s => enabledSchools.has(s.id));
   if (activeSchools.length === 0) {
-    showError('请至少开启一位专家');
+    showError('Enable at least one adviser');
     return;
   }
 
@@ -521,7 +521,7 @@ async function handleSend() {
   // Show disabled notice for turned-off schools
   for (const s of schools) {
     if (!enabledSchools.has(s.id)) {
-      addMessage(s.id, 'disabled-notice', `（${s.name}已关闭）`);
+      addMessage(s.id, 'disabled-notice', `(${s.name} is disabled)`);
     }
   }
 
@@ -537,7 +537,7 @@ async function handleSend() {
         if (reply && reply.content) {
           addMessage(s.id, 'assistant', reply.content);
         } else {
-          addMessage(s.id, 'system', '未收到回复');
+          addMessage(s.id, 'system', 'No reply received');
         }
       }
     }
@@ -548,7 +548,7 @@ async function handleSend() {
         await compressSession();
         messageCount = 0;
       } catch (e) {
-        console.warn('压缩失败:', e);
+        console.warn('Compression failed:', e);
       }
     }
   } catch (err) {
@@ -556,7 +556,7 @@ async function handleSend() {
       if (enabledSchools.has(s.id)) {
         hideTyping(s.id);
       }
-      addMessage(s.id, 'system', `请求失败：${err.message}`);
+      addMessage(s.id, 'system', `Request failed: ${err.message}`);
     }
     showError(err.message);
   } finally {
@@ -603,7 +603,7 @@ userInput.addEventListener('input', () => {
     renderGrid();
     setInputEnabled(true);
   } catch (err) {
-    showError(`无法创建会话：${err.message}`);
+    showError(`Unable to create session: ${err.message}`);
   }
 })();
 </script>

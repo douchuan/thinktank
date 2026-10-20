@@ -45,10 +45,10 @@ def build_council_crew(settings: Settings) -> Crew:
     )
 
     advisers = [
-        ("儒家", create_confucian_agent(llm)),
-        ("法家", create_legalist_agent(llm)),
-        ("道家", create_taoist_agent(llm)),
-        ("兵家", create_strategist_agent(llm)),
+        ("Confucian", create_confucian_agent(llm)),
+        ("Legalist", create_legalist_agent(llm)),
+        ("Taoist", create_taoist_agent(llm)),
+        ("Strategist", create_strategist_agent(llm)),
     ]
     tasks = [create_advice_task(agent, school) for school, agent in advisers]
     return Crew(

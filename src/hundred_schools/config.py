@@ -23,7 +23,9 @@ class Settings:
 
         model = os.getenv("MODEL", "openai/gpt-4o-mini").strip()
         if not model:
-            raise ValueError("MODEL 不能为空，请在环境变量或 .env 文件中配置。")
+            raise ValueError(
+                "MODEL cannot be empty. Please configure it via environment variable or .env file."
+            )
 
         api_key = os.getenv("API_KEY", "").strip() or None
         base_url = os.getenv("BASE_URL", "").strip() or None

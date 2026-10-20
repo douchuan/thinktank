@@ -8,10 +8,13 @@ from pydantic import BaseModel, Field
 class AdviserOpinion(BaseModel):
     """One school's concise recommendation."""
 
-    school: str = Field(description="学派名称，例如儒家、法家、道家或兵家")
+    school: str = Field(description="School name, e.g. Confucian, Legalist, Taoist, or Strategist")
     advice: str = Field(
         min_length=1,
-        description="中文建议正文，目标 50～100 个汉字，采用总—分—总结构",
+        description=(
+            "Advice body in English, targeting 50-100 Chinese characters, "
+            "using a thesis-analysis-conclusion structure"
+        ),
     )
 
 
@@ -24,5 +27,8 @@ def length_warning(opinion: AdviserOpinion) -> str | None:
     """Return a warning when advice is outside the target CJK character range."""
     count = count_cjk_characters(opinion.advice)
     if not 50 <= count <= 100:
-        return f"{opinion.school}建议包含约 {count} 个汉字，目标范围为 50～100 字。"
+        return (
+            f"{opinion.school} advice contains approximately {count} "
+            f"Chinese characters; target range is 50-100."
+        )
     return None

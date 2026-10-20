@@ -24,17 +24,17 @@ def test_llm_smoke() -> None:
     llm = LLM(**options)
 
     agent = Agent(
-        role="测试助手",
-        goal="验证模型是否能够正常响应",
-        backstory="你是一个用于诊断模型连接的助手。",
+        role="Test Assistant",
+        goal="Verify that the model can respond normally",
+        backstory="You are an assistant used to diagnose model connectivity.",
         llm=llm,
         verbose=True,
         allow_delegation=False,
     )
 
     task = Task(
-        description="请只回答：测试成功。",
-        expected_output="测试成功",
+        description="Please reply only with: Test successful.",
+        expected_output="Test successful",
         agent=agent,
     )
 
@@ -47,6 +47,6 @@ def test_llm_smoke() -> None:
     )
 
     result = crew.kickoff()
-    print(f"\n模型返回结果：{result}")
+    print(f"\nModel returned result: {result}")
 
-    assert str(result).strip(), "模型返回了空结果"
+    assert str(result).strip(), "Model returned empty result"
