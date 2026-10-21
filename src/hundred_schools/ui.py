@@ -10,8 +10,6 @@ Or via CLI entry point:
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
 import streamlit as st
@@ -21,35 +19,13 @@ _ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from crewai import LLM, Agent  # noqa: E402
+from crewai import LLM  # noqa: E402
 
-from hundred_schools.agents.experts import (  # noqa: E402
-    create_confucian_agent,
-    create_legalist_agent,
-    create_strategist_agent,
-    create_taoist_agent,
-)
+from hundred_schools.agents.loader import SchoolDef, load_schools  # noqa: E402
 from hundred_schools.config import Settings  # noqa: E402
 from hundred_schools.crews.council_crew import create_llm  # noqa: E402
 
-
-@dataclass(frozen=True)
-class SchoolDef:
-    """Display metadata and agent factory for one school of thought."""
-
-    id: str
-    name: str
-    color: str
-    emoji: str
-    creator: Callable[[LLM], Agent]
-
-
-SCHOOLS: list[SchoolDef] = [
-    SchoolDef("confucian", "Confucian", "#bf6f36", "🎓", create_confucian_agent),
-    SchoolDef("legalist", "Legalist", "#cf222e", "⚖️", create_legalist_agent),
-    SchoolDef("taoist", "Taoist", "#1a7f37", "🌿", create_taoist_agent),
-    SchoolDef("strategist", "Strategist", "#8250df", "🎯", create_strategist_agent),
-]
+SCHOOLS: list[SchoolDef] = load_schools()
 
 
 # ---------------------------------------------------------------------------
@@ -70,20 +46,20 @@ def _build_agents(
     model: str,
     api_key: str | None,
     base_url: str | None,
-) -> dict[str, Agent]:
+) -> dict[str, LLM]:
     """Cache agent definitions across Streamlit reruns."""
     settings = Settings(model=model, api_key=api_key, base_url=base_url)
     llm = _build_llm(settings)
-    return {school.id: school.creator(llm) for school in SCHOOLS}
+    return {school.id: school.create_agent(llm) for school in SCHOOLS}
 
 
-def _system_prompt(school: SchoolDef, agent: Agent) -> str:
+def _system_prompt(school: SchoolDef, agent: LLM) -> str:
     return (
         f"You are a {school.name} adviser. Answer the user's question based on "
         f"{school.name} thought.\n\n"
-        f"Role: {agent.role}\n"
-        f"Goal: {agent.goal}\n"
-        f"Background: {agent.backstory}\n\n"
+        f"Role: {agent.role}\n"  # type: ignore[attr-defined]
+        f"Goal: {agent.goal}\n"  # type: ignore[attr-defined]
+        f"Background: {agent.backstory}\n\n"  # type: ignore[attr-defined]
         "Requirements:\n"
         "1. Respond in English.\n"
         "2. Use Markdown formatting — headings, bullet points, bold, etc.\n"
@@ -93,7 +69,7 @@ def _system_prompt(school: SchoolDef, agent: Agent) -> str:
     )
 
 
-def _call_agent(agent: Agent, llm: LLM, school: SchoolDef, message: str) -> str:
+def _call_agent(agent: LLM, llm: LLM, school: SchoolDef, message: str) -> str:
     messages = [
         {"role": "system", "content": _system_prompt(school, agent)},
         {"role": "user", "content": message},

@@ -4,12 +4,7 @@ from __future__ import annotations
 
 from crewai import LLM, Crew, Process
 
-from hundred_schools.agents.experts import (
-    create_confucian_agent,
-    create_legalist_agent,
-    create_strategist_agent,
-    create_taoist_agent,
-)
+from hundred_schools.agents.loader import load_schools
 from hundred_schools.config import Settings
 from hundred_schools.tasks.consultation import create_advice_task
 
@@ -44,13 +39,9 @@ def build_council_crew(settings: Settings) -> Crew:
         base_url=settings.base_url,
     )
 
-    advisers = [
-        ("Confucian", create_confucian_agent(llm)),
-        ("Legalist", create_legalist_agent(llm)),
-        ("Taoist", create_taoist_agent(llm)),
-        ("Strategist", create_strategist_agent(llm)),
-    ]
-    tasks = [create_advice_task(agent, school) for school, agent in advisers]
+    schools = load_schools()
+    advisers = [(school, school.create_agent(llm)) for school in schools]
+    tasks = [create_advice_task(agent, school.name) for school, agent in advisers]
     return Crew(
         agents=[agent for _, agent in advisers],
         tasks=tasks,
