@@ -82,8 +82,9 @@ uv run ruff format --check .
 ├── CLAUDE.md
 ├── pyproject.toml
 ├── README.md
-├── WEB_UI.md
 ├── .env.example
+├── docs/
+│   └── WEB_UI.md           # Streamlit UI documentation
 ├── src/hundred_schools/
 │   ├── agents/             # Expert Agent definitions
 │   ├── crews/              # Crew orchestration
