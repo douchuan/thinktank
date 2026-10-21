@@ -63,6 +63,10 @@ uv run hundred-schools-ui
 A browser window will open automatically. Each adviser processes its response
 progressively, so you see answers appear one by one rather than waiting for all.
 
+<div align="center">
+<img src="docs/screenshot.png" alt="Screenshot" width="600">
+</div>
+
 ## Development & Testing
 
 ```bash

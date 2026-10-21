@@ -10,9 +10,9 @@ Or via CLI entry point:
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import streamlit as st
 
@@ -21,7 +21,7 @@ _ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from crewai import Agent, LLM  # noqa: E402
+from crewai import LLM, Agent  # noqa: E402
 
 from hundred_schools.agents.experts import (  # noqa: E402
     create_confucian_agent,
@@ -109,21 +109,16 @@ def _call_agent(agent: Agent, llm: LLM, school: SchoolDef, message: str) -> str:
 
 def _init_state() -> None:
     defaults = {
+        "active_school_id": SCHOOLS[0].id,
         "enabled": {school.id: True for school in SCHOOLS},
         "history": {school.id: [] for school in SCHOOLS},
         "pending_question": None,
         "pending_idx": 0,
         "broadcast_count": 0,
-        "active_school_id": SCHOOLS[0].id,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
-
-    active_id = st.session_state.active_school_id
-    st.session_state.enabled = {
-        school.id: school.id == active_id for school in SCHOOLS
-    }
 
 
 def _clear_chat() -> None:
@@ -138,7 +133,7 @@ def _has_pending() -> bool:
 
 
 def _active_schools() -> list[SchoolDef]:
-    """Return the single adviser selected in the upper-right dropdown."""
+    """Return the single adviser selected in the sidebar dropdown."""
     active_id = st.session_state.get("active_school_id", SCHOOLS[0].id)
     return [school for school in SCHOOLS if school.id == active_id]
 
@@ -166,26 +161,44 @@ def _render_school_chat(school: SchoolDef) -> None:
 
         if _has_pending() and enabled:
             pending_idx = st.session_state.pending_idx
-            if (
-                pending_idx < len(SCHOOLS)
-                and SCHOOLS[pending_idx].id == school.id
-            ):
-                st.chat_message("assistant", avatar=school.emoji).write(
-                    "_Thinking…_"
-                )
+            if pending_idx < len(SCHOOLS) and SCHOOLS[pending_idx].id == school.id:
+                st.chat_message("assistant", avatar=school.emoji).write("_Thinking…_")
 
 
 def _render_active_school_chats() -> None:
     """Render enabled advisers' conversations in one full-width column."""
     active_schools = _active_schools()
     if not active_schools:
-        st.info("Select at least one adviser from the menu in the upper-right corner.")
+        st.info("Select at least one adviser from the panel on the right.")
         return
 
     for index, school in enumerate(active_schools):
         if index:
             st.divider()
         _render_school_chat(school)
+
+
+def _render_sidebar() -> None:
+    """Render the title + school dropdown in the right column."""
+    st.markdown("**Hundred Schools Advisory**")
+
+    school_options = {school.id: f"{school.emoji} {school.name}" for school in SCHOOLS}
+    st.selectbox(
+        "Adviser",
+        options=[school.id for school in SCHOOLS],
+        format_func=lambda sid: school_options[sid],
+        key="active_school_id",
+        label_visibility="collapsed",
+    )
+    # Changing the dropdown activates only that adviser.
+    st.session_state.enabled = {
+        school.id: school.id == st.session_state.active_school_id for school in SCHOOLS
+    }
+
+    st.divider()
+    if st.button("New Chat", use_container_width=True):
+        _clear_chat()
+        st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -231,9 +244,7 @@ def _process_pending() -> None:
     try:
         with st.spinner(f"{school.name} is thinking…"):
             reply = _call_agent(agents[school.id], llm, school, question)
-        st.session_state.history[school.id].append(
-            {"role": "assistant", "content": reply}
-        )
+        st.session_state.history[school.id].append({"role": "assistant", "content": reply})
     except Exception as exc:  # Keep the broadcast moving if one adviser fails.
         st.session_state.history[school.id].append(
             {"role": "system", "content": f"Request failed: {exc}"}
@@ -289,44 +300,31 @@ def _main() -> None:
         st.error(f"Failed to initialise advisers: {exc}")
         st.stop()
 
-    # Process the next adviser before rendering the normal page. Each call
-    # reruns the script and advances pending_idx until all enabled advisers finish.
+    # Process the next adviser before rendering the normal page.
     if _has_pending():
         _process_pending()
         return
 
-    # Compact header: the single selected adviser is active.
-    header_col, selector_col, action_col = st.columns([5, 3, 1.5], gap="small")
-    with header_col:
-        st.markdown(
-            "<h2 style='margin:0.2rem 0 0.1rem;'>Hundred Schools Advisory</h2>",
-            unsafe_allow_html=True,
-        )
-        st.caption("Ask one question and compare perspectives from different schools of thought.")
-    with selector_col:
-        school_options = {school.id: f"{school.emoji} {school.name}" for school in SCHOOLS}
-        st.selectbox(
-            "Active adviser",
-            options=[school.id for school in SCHOOLS],
-            format_func=lambda school_id: school_options[school_id],
-            key="active_school_id",
-            label_visibility="collapsed",
-        )
-        # Selecting one adviser activates only that adviser.
-        active_id = st.session_state.active_school_id
-        st.session_state.enabled = {
-            school.id: school.id == active_id for school in SCHOOLS
-        }
-    with action_col:
-        if st.button("New Chat", use_container_width=True):
-            _clear_chat()
-            st.rerun()
+    # Two-column layout: chat area (left) + sidebar (right).
+    chat_col, sidebar_col = st.columns([4, 1])
 
-    # One full-width conversation area. Only selected/active advisers are shown.
-    _render_active_school_chats()
+    # --- Left column: chat messages + input ---
+    with chat_col:
+        _render_active_school_chats()
 
-    # Native chat input replaces the old fixed-position textarea and custom CSS.
-    question = st.chat_input("Ask the advisers a question…", key="question_input")
+        # Native chat input inside the left column so it stays aligned with
+        # the conversation area instead of spanning the full page width.
+        question = st.chat_input("Ask the advisers a question…", key="question_input")
+
+    # --- Right column: title + adviser dropdown + new chat ---
+    with sidebar_col:
+        _render_sidebar()
+
+    # Handle any pending advisers advanced by sidebar interactions.
+    if _has_pending():
+        _process_pending()
+        return
+
     if question is not None:
         text = question.strip()
         if not text:
@@ -338,9 +336,7 @@ def _main() -> None:
 
         # Show the question in each adviser's independent conversation history.
         for school in SCHOOLS:
-            st.session_state.history[school.id].append(
-                {"role": "user", "content": text}
-            )
+            st.session_state.history[school.id].append({"role": "user", "content": text})
 
         st.session_state.pending_question = text
         st.session_state.pending_idx = 0
