@@ -69,7 +69,7 @@ _PAGE_CSS = """
 <style>
     .stApp { background: #ffffff; }
     #MainMenu, footer, header { visibility: hidden; }
-    .block-container { padding-top: 1rem; padding-bottom: 0.5rem; }
+    .block-container { padding-top: 0.5rem; padding-bottom: 6rem; }
     .stChatMessage { line-height: 1.6; }
 
     /* Color dots in column headers */
@@ -89,6 +89,28 @@ _PAGE_CSS = """
 
     /* Make disabled school columns visually dimmed */
     div[data-testid="column"] { transition: opacity 0.2s; }
+
+    /* ---- Fixed-height chat areas with per-column scroll ---- */
+    .chat-scroll {
+        height: 55vh;
+        min-height: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .chat-scroll::-webkit-scrollbar { width: 6px; }
+    .chat-scroll::-webkit-scrollbar-thumb { background: #d0d7de; border-radius: 3px; }
+
+    /* ---- Fixed bottom input bar ---- */
+    #input-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #f6f8fa;
+        border-top: 1px solid #d0d7de;
+        padding: 8px 20px;
+        z-index: 9999;
+    }
 </style>
 """
 
@@ -192,22 +214,23 @@ def _render_school_column(school: SchoolDef) -> None:
         unsafe_allow_html=True,
     )
 
-    # Chat history
-    for msg in st.session_state.history[school.id]:
-        role = msg["role"]
-        content = msg["content"]
-        if role == "user":
-            st.chat_message("user", avatar="🧑").write(content)
-        elif role == "assistant":
-            st.chat_message("assistant", avatar=school.emoji).write(content)
-        elif role == "system":
-            st.markdown(f'<p class="sys-msg">{content}</p>', unsafe_allow_html=True)
+    # Scrollable chat container
+    with st.container(height=500, border=False):
+        for msg in st.session_state.history[school.id]:
+            role = msg["role"]
+            content = msg["content"]
+            if role == "user":
+                st.chat_message("user", avatar="🧑").write(content)
+            elif role == "assistant":
+                st.chat_message("assistant", avatar=school.emoji).write(content)
+            elif role == "system":
+                st.markdown(f'<p class="sys-msg">{content}</p>', unsafe_allow_html=True)
 
-    # Typing indicator for schools currently being processed
-    if _has_pending() and enabled:
-        idx = st.session_state.pending_idx
-        if idx < len(SCHOOLS) and SCHOOLS[idx].id == school.id:
-            st.chat_message("assistant", avatar=school.emoji).write("_Thinking…_")
+        # Typing indicator for schools currently being processed
+        if _has_pending() and enabled:
+            idx = st.session_state.pending_idx
+            if idx < len(SCHOOLS) and SCHOOLS[idx].id == school.id:
+                st.chat_message("assistant", avatar=school.emoji).write("_Thinking…_")
 
 
 # ---------------------------------------------------------------------------
@@ -344,19 +367,20 @@ def _main() -> None:
         with col:
             _render_school_column(school)
 
-    # --- Input row ---
-    st.write("")  # spacer
+    # --- Fixed bottom input bar ---
+    st.markdown('<div id="input-bar">', unsafe_allow_html=True)
     question = st.text_area(
         "Your question",
         placeholder="Type your question…",
         key="question_input",
-        height=80,
+        height=60,
         label_visibility="collapsed",
     )
 
-    left_btn, mid, right = st.columns([1, 1, 8])
+    left_btn, _, _ = st.columns([1, 1, 8])
     with left_btn:
         clicked = st.button("Send", use_container_width=True, type="primary")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if clicked:
         text = (question or "").strip()
