@@ -18,7 +18,9 @@ def create_advice_task(agent: Agent, school: str) -> Task:
             "2. Use Markdown formatting (headings, bold, bullet points, etc.) "
             "as appropriate.\n"
             "3. Provide concrete, actionable advice.\n"
-            "4. Do not pretend to represent other schools; do not force alignment "
+            "4. Keep it to ~150 words — 2-3 key points, no preamble, no restating "
+            "the question, no philosophical background summaries.\n"
+            "5. Do not pretend to represent other schools; do not force alignment "
             "across different schools' conclusions."
         ),
         expected_output=(

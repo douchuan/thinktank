@@ -12,18 +12,16 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# Make src/ importable when running `streamlit run src/hundred_schools/ui.py`
-# directly (without `uv run`). When installed via uv, this is a no-op.
-# ---------------------------------------------------------------------------
-_root = Path(__file__).resolve().parent.parent.parent
-if str(_root) not in sys.path:
-    sys.path.insert(0, str(_root))
+# Make src/ importable when running this file directly.
+_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-from crewai import LLM, Agent  # noqa: E402
+from crewai import Agent, LLM  # noqa: E402
 
 from hundred_schools.agents.experts import (  # noqa: E402
     create_confucian_agent,
@@ -34,18 +32,16 @@ from hundred_schools.agents.experts import (  # noqa: E402
 from hundred_schools.config import Settings  # noqa: E402
 from hundred_schools.crews.council_crew import create_llm  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# School definitions
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class SchoolDef:
+    """Display metadata and agent factory for one school of thought."""
+
     id: str
     name: str
     color: str
     emoji: str
-    creator: object  # (LLM) -> Agent
+    creator: Callable[[LLM], Agent]
 
 
 SCHOOLS: list[SchoolDef] = [
@@ -55,64 +51,9 @@ SCHOOLS: list[SchoolDef] = [
     SchoolDef("strategist", "Strategist", "#8250df", "🎯", create_strategist_agent),
 ]
 
-SCHOOL_MAP = {s.id: s for s in SCHOOLS}
 
 # ---------------------------------------------------------------------------
-# CSS theme (mirrors the existing HTML UI's GitHub-inspired light palette)
-# ---------------------------------------------------------------------------
-
-_PAGE_CSS = """
-<style>
-    .stApp { background: #ffffff; }
-    #MainMenu, footer, header { visibility: hidden; }
-    .block-container { padding-top: 0.5rem; padding-bottom: 6rem; }
-    .stChatMessage { line-height: 1.6; }
-
-    /* Color dots in column headers */
-    .school-dot {
-        display: inline-block;
-        width: 10px; height: 10px;
-        border-radius: 50%;
-        margin-right: 6px;
-        vertical-align: middle;
-    }
-
-    /* System / notice messages appear italic and muted */
-    .sys-msg { color: #656d76; font-style: italic; font-size: 13px; }
-
-    /* Input area */
-    .stTextArea textarea { font-size: 14px !important; }
-
-    /* Make disabled school columns visually dimmed */
-    div[data-testid="column"] { transition: opacity 0.2s; }
-
-    /* ---- Fixed-height chat areas with per-column scroll ---- */
-    .chat-scroll {
-        height: 55vh;
-        min-height: 300px;
-        overflow-y: auto;
-        overflow-x: hidden;
-    }
-    .chat-scroll::-webkit-scrollbar { width: 6px; }
-    .chat-scroll::-webkit-scrollbar-thumb { background: #d0d7de; border-radius: 3px; }
-
-    /* ---- Fixed bottom input bar ---- */
-    #input-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #f6f8fa;
-        border-top: 1px solid #d0d7de;
-        padding: 8px 20px;
-        z-index: 9999;
-    }
-</style>
-"""
-
-
-# ---------------------------------------------------------------------------
-# Agent cache — built once per model config, survives reruns
+# Agent construction
 # ---------------------------------------------------------------------------
 
 
@@ -125,10 +66,15 @@ def _build_llm(settings: Settings) -> LLM:
 
 
 @st.cache_resource(show_spinner="Initialising advisers…")
-def _build_agents(model: str, api_key: str | None, base_url: str | None) -> dict[str, Agent]:
+def _build_agents(
+    model: str,
+    api_key: str | None,
+    base_url: str | None,
+) -> dict[str, Agent]:
+    """Cache agent definitions across Streamlit reruns."""
     settings = Settings(model=model, api_key=api_key, base_url=base_url)
     llm = _build_llm(settings)
-    return {s.id: s.creator(llm) for s in SCHOOLS}
+    return {school.id: school.creator(llm) for school in SCHOOLS}
 
 
 def _system_prompt(school: SchoolDef, agent: Agent) -> str:
@@ -138,11 +84,12 @@ def _system_prompt(school: SchoolDef, agent: Agent) -> str:
         f"Role: {agent.role}\n"
         f"Goal: {agent.goal}\n"
         f"Background: {agent.backstory}\n\n"
-        f"Requirements:\n"
-        f"1. Respond in English.\n"
-        f"2. Use Markdown formatting — headings, bullet points, bold, etc.\n"
-        f"3. Provide concrete, actionable advice.\n"
-        f"4. Do not pretend to represent other schools."
+        "Requirements:\n"
+        "1. Respond in English.\n"
+        "2. Use Markdown formatting — headings, bullet points, bold, etc.\n"
+        "3. Provide concrete, actionable advice.\n"
+        "4. Keep it to ~150 words — 2-3 key points, no preamble.\n"
+        "5. Do not pretend to represent other schools."
     )
 
 
@@ -156,32 +103,31 @@ def _call_agent(agent: Agent, llm: LLM, school: SchoolDef, message: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Session-state helpers
+# Session state
 # ---------------------------------------------------------------------------
-
-# Keys used in st.session_state:
-#   enabled          – dict[school_id -> bool]
-#   history          – dict[school_id -> list[{role, content}]]
-#   pending_question – str | None (question waiting for broadcast)
-#   pending_idx      – index into SCHOOLS of the next school to process
-#   broadcast_count  – number of completed broadcast rounds
 
 
 def _init_state() -> None:
     defaults = {
-        "enabled": {s.id: True for s in SCHOOLS},
-        "history": {s.id: [] for s in SCHOOLS},
+        "enabled": {school.id: True for school in SCHOOLS},
+        "history": {school.id: [] for school in SCHOOLS},
         "pending_question": None,
         "pending_idx": 0,
         "broadcast_count": 0,
+        "active_school_id": SCHOOLS[0].id,
     }
-    for key, val in defaults.items():
+    for key, value in defaults.items():
         if key not in st.session_state:
-            st.session_state[key] = val
+            st.session_state[key] = value
+
+    active_id = st.session_state.active_school_id
+    st.session_state.enabled = {
+        school.id: school.id == active_id for school in SCHOOLS
+    }
 
 
 def _clear_chat() -> None:
-    st.session_state.history = {s.id: [] for s in SCHOOLS}
+    st.session_state.history = {school.id: [] for school in SCHOOLS}
     st.session_state.broadcast_count = 0
     st.session_state.pending_question = None
     st.session_state.pending_idx = 0
@@ -192,68 +138,80 @@ def _has_pending() -> bool:
 
 
 def _active_schools() -> list[SchoolDef]:
-    return [s for s in SCHOOLS if st.session_state.enabled.get(s.id)]
+    """Return the single adviser selected in the upper-right dropdown."""
+    active_id = st.session_state.get("active_school_id", SCHOOLS[0].id)
+    return [school for school in SCHOOLS if school.id == active_id]
 
 
 # ---------------------------------------------------------------------------
-# Render one school's chat column
+# Chat rendering
 # ---------------------------------------------------------------------------
 
 
-def _render_school_column(school: SchoolDef) -> None:
+def _render_school_chat(school: SchoolDef) -> None:
+    """Render one school's history inside a bounded, native Streamlit container."""
     enabled = st.session_state.enabled.get(school.id, True)
 
-    # Header with color dot
-    st.markdown(
-        f'<span class="school-dot" style="background:{school.color}"></span>**{school.name}**',
-        unsafe_allow_html=True,
-    )
+    with st.container(height=500, border=True):
+        for message in st.session_state.history[school.id]:
+            role = message["role"]
+            content = message["content"]
 
-    # Scrollable chat container
-    with st.container(height=500, border=False):
-        for msg in st.session_state.history[school.id]:
-            role = msg["role"]
-            content = msg["content"]
             if role == "user":
                 st.chat_message("user", avatar="🧑").write(content)
             elif role == "assistant":
                 st.chat_message("assistant", avatar=school.emoji).markdown(content)
             elif role == "system":
-                st.markdown(f'<p class="sys-msg">{content}</p>', unsafe_allow_html=True)
+                st.caption(content)
 
-        # Typing indicator for schools currently being processed
         if _has_pending() and enabled:
-            idx = st.session_state.pending_idx
-            if idx < len(SCHOOLS) and SCHOOLS[idx].id == school.id:
-                st.chat_message("assistant", avatar=school.emoji).write("_Thinking…_")
+            pending_idx = st.session_state.pending_idx
+            if (
+                pending_idx < len(SCHOOLS)
+                and SCHOOLS[pending_idx].id == school.id
+            ):
+                st.chat_message("assistant", avatar=school.emoji).write(
+                    "_Thinking…_"
+                )
+
+
+def _render_active_school_chats() -> None:
+    """Render enabled advisers' conversations in one full-width column."""
+    active_schools = _active_schools()
+    if not active_schools:
+        st.info("Select at least one adviser from the menu in the upper-right corner.")
+        return
+
+    for index, school in enumerate(active_schools):
+        if index:
+            st.divider()
+        _render_school_chat(school)
 
 
 # ---------------------------------------------------------------------------
-# Process one school per rerun cycle (progressive broadcast)
+# Progressive broadcast: process one enabled school per rerun
 # ---------------------------------------------------------------------------
 
 
 def _process_pending() -> None:
-    """Handle the next school in the broadcast pipeline, then rerun."""
+    """Handle the next adviser, then rerun to continue the broadcast."""
     if not _has_pending():
         return
 
     question = st.session_state.pending_question
     idx = st.session_state.pending_idx
-    active = _active_schools()
-    active_ids = {s.id for s in active}
+    active_ids = {school.id for school in _active_schools()}
 
-    # Skip disabled schools
+    # Skip disabled advisers without making an LLM call.
     while idx < len(SCHOOLS) and SCHOOLS[idx].id not in active_ids:
-        # Still add a disabled notice
-        st.session_state.history[SCHOOLS[idx].id].append(
-            {"role": "system", "content": f"({SCHOOLS[idx].name} is disabled)"}
+        school = SCHOOLS[idx]
+        st.session_state.history[school.id].append(
+            {"role": "system", "content": f"({school.name} is disabled)"}
         )
         idx += 1
         st.session_state.pending_idx = idx
 
     if idx >= len(SCHOOLS):
-        # All done
         st.session_state.pending_question = None
         st.session_state.pending_idx = 0
         st.session_state.broadcast_count += 1
@@ -261,32 +219,32 @@ def _process_pending() -> None:
         return
 
     school = SCHOOLS[idx]
-    agent_map = st.session_state.get("_agents", {})
+    agents = st.session_state.get("_agents", {})
     llm = st.session_state.get("_llm")
 
-    if llm is None or not agent_map:
+    if llm is None or not agents:
         st.session_state.pending_question = None
         st.session_state.pending_idx = 0
         st.error("Advisers not initialised — please check your model configuration.")
-        st.rerun()
-        return
+        st.stop()
 
-    with st.spinner(f"{school.name} is thinking…"):
-        try:
-            agent = agent_map[school.id]
-            reply = _call_agent(agent, llm, school, question)
-            st.session_state.history[school.id].append({"role": "assistant", "content": reply})
-        except Exception as exc:
-            st.session_state.history[school.id].append(
-                {"role": "system", "content": f"Request failed: {exc}"}
-            )
+    try:
+        with st.spinner(f"{school.name} is thinking…"):
+            reply = _call_agent(agents[school.id], llm, school, question)
+        st.session_state.history[school.id].append(
+            {"role": "assistant", "content": reply}
+        )
+    except Exception as exc:  # Keep the broadcast moving if one adviser fails.
+        st.session_state.history[school.id].append(
+            {"role": "system", "content": f"Request failed: {exc}"}
+        )
 
     st.session_state.pending_idx = idx + 1
     st.rerun()
 
 
 # ---------------------------------------------------------------------------
-# Main UI
+# Streamlit entry points
 # ---------------------------------------------------------------------------
 
 
@@ -305,86 +263,85 @@ def run() -> None:
 
 
 def _main() -> None:
-    st.set_page_config(page_title="Hundred Schools Advisory", layout="wide")
-    st.markdown(_PAGE_CSS, unsafe_allow_html=True)
-
+    st.set_page_config(
+        page_title="Hundred Schools Advisory",
+        page_icon="🎓",
+        layout="wide",
+    )
+    st.markdown(
+        "<style>"
+        " .block-container { padding-top: 1rem; } "
+        " #MainMenu, header { visibility: hidden; }"
+        "</style>",
+        unsafe_allow_html=True,
+    )
     _init_state()
 
-    # --- Build agents (cached) ---
+    # Initialise shared model/agent resources. These are cached or retained in
+    # session state so a normal Streamlit rerun does not rebuild the agents.
     settings = Settings.from_env()
     try:
         agents = _build_agents(settings.model, settings.api_key, settings.base_url)
         llm = _build_llm(settings)
-        # Persist into session_state for _process_pending
         st.session_state["_agents"] = agents
         st.session_state["_llm"] = llm
     except Exception as exc:
         st.error(f"Failed to initialise advisers: {exc}")
         st.stop()
 
-    # --- Check if we are mid-broadcast ---
+    # Process the next adviser before rendering the normal page. Each call
+    # reruns the script and advances pending_idx until all enabled advisers finish.
     if _has_pending():
         _process_pending()
-        return  # _process_pending already called rerun
+        return
 
-    # --- Header ---
-    hdr_left, hdr_right = st.columns([3, 1])
-    with hdr_left:
-        st.title("Hundred Schools Advisory")
-    with hdr_right:
-        st.write("")  # spacer
-        st.write("")
+    # Compact header: the single selected adviser is active.
+    header_col, selector_col, action_col = st.columns([5, 3, 1.5], gap="small")
+    with header_col:
+        st.markdown(
+            "<h2 style='margin:0.2rem 0 0.1rem;'>Hundred Schools Advisory</h2>",
+            unsafe_allow_html=True,
+        )
+        st.caption("Ask one question and compare perspectives from different schools of thought.")
+    with selector_col:
+        school_options = {school.id: f"{school.emoji} {school.name}" for school in SCHOOLS}
+        st.selectbox(
+            "Active adviser",
+            options=[school.id for school in SCHOOLS],
+            format_func=lambda school_id: school_options[school_id],
+            key="active_school_id",
+            label_visibility="collapsed",
+        )
+        # Selecting one adviser activates only that adviser.
+        active_id = st.session_state.active_school_id
+        st.session_state.enabled = {
+            school.id: school.id == active_id for school in SCHOOLS
+        }
+    with action_col:
         if st.button("New Chat", use_container_width=True):
             _clear_chat()
             st.rerun()
 
-    # --- Toggle row ---
-    st.caption("Toggle advisers on / off before sending.")
-    tog_cols = st.columns(len(SCHOOLS))
-    for col, school in zip(tog_cols, SCHOOLS, strict=True):
-        with col:
-            val = st.checkbox(
-                school.name,
-                value=st.session_state.enabled[school.id],
-                key=f"tog_{school.id}",
-            )
-            st.session_state.enabled[school.id] = val
+    # One full-width conversation area. Only selected/active advisers are shown.
+    _render_active_school_chats()
 
-    # --- Chat columns ---
-    chat_cols = st.columns(len(SCHOOLS))
-    for col, school in zip(chat_cols, SCHOOLS, strict=True):
-        with col:
-            _render_school_column(school)
-
-    # --- Fixed bottom input bar ---
-    st.markdown('<div id="input-bar">', unsafe_allow_html=True)
-    question = st.text_area(
-        "Your question",
-        placeholder="Type your question…",
-        key="question_input",
-        height=60,
-        label_visibility="collapsed",
-    )
-
-    left_btn, _, _ = st.columns([1, 1, 8])
-    with left_btn:
-        clicked = st.button("Send", use_container_width=True, type="primary")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    if clicked:
-        text = (question or "").strip()
+    # Native chat input replaces the old fixed-position textarea and custom CSS.
+    question = st.chat_input("Ask the advisers a question…", key="question_input")
+    if question is not None:
+        text = question.strip()
         if not text:
             st.warning("Please enter a question.")
-            st.stop()
+            return
         if not _active_schools():
-            st.warning("Enable at least one adviser.")
-            st.stop()
+            st.warning("Select an adviser before sending a question.")
+            return
 
-        # Add user message to ALL columns (visible even for disabled schools)
-        for s in SCHOOLS:
-            st.session_state.history[s.id].append({"role": "user", "content": text})
+        # Show the question in each adviser's independent conversation history.
+        for school in SCHOOLS:
+            st.session_state.history[school.id].append(
+                {"role": "user", "content": text}
+            )
 
-        # Kick off broadcast from index 0
         st.session_state.pending_question = text
         st.session_state.pending_idx = 0
         st.rerun()
