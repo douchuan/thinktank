@@ -12,7 +12,7 @@ A multi-agent learning project built on Python 3.12 and CrewAI. Submit a questio
 - CrewAI `Agent`, `Task`, `Crew`, and `Process.sequential` orchestration.
 - Pydantic result models for structured output.
 - Target output length: 80–150 English words per school, following a thesis–analysis–conclusion structure.
-- CLI, Web UI, foundational unit tests, Ruff configuration, and `.env.example`.
+- CLI, Streamlit Web UI, foundational unit tests, Ruff configuration, and `.env.example`.
 
 > Length and structure are guided by prompts and enforced by basic programmatic validation. LLM output is not guaranteed to always meet requirements. The project warns on abnormal lengths rather than silently truncating advice.
 
@@ -53,17 +53,16 @@ uv run hundred-schools
 
 ### Web UI
 
-The web interface provides each school with its own conversation window, supporting multi-turn follow-ups with isolated conversation histories across schools.
+The Streamlit interface provides each school with its own conversation column,
+supporting per-school toggles and broadcast questions to all enabled advisers.
 
 ```bash
-uv run hundred-schools-web
+uv sync --extra web
+uv run hundred-schools-ui
 ```
 
-Open your browser to `http://localhost:8000` after starting.
-
-<div align="center">
-<img src="docs/screenshot.png" alt="Web UI Screenshot" width="600">
-</div>
+A browser window will open automatically. Each adviser processes its response
+progressively, so you see answers appear one by one rather than waiting for all.
 
 ## Development & Testing
 
@@ -80,23 +79,22 @@ uv run ruff format --check .
 ├── CLAUDE.md
 ├── pyproject.toml
 ├── README.md
+├── WEB_UI.md
 ├── .env.example
 ├── src/hundred_schools/
-│   ├── agents/       # Expert Agent definitions
-│   ├── crews/        # Crew orchestration
-│   ├── tasks/        # Task definitions
-│   ├── models/       # Pydantic output models
+│   ├── agents/             # Expert Agent definitions
+│   ├── crews/              # Crew orchestration
+│   ├── tasks/              # Task definitions
+│   ├── models/             # Pydantic output models
 │   ├── config.py
-│   ├── main.py       # CLI entry point
-│   ├── server.py     # Web UI backend
-│   └── static/       # Web UI frontend
-│       └── index.html
+│   ├── main.py             # CLI entry point
+│   └── ui.py               # Streamlit Web UI + CLI entry point
 └── tests/
 ```
 
 ## Design Boundaries
 
 - CLI uses sequential execution; each of the four schools completes its advice task independently.
-- Web UI provides independent conversation windows per school with multi-turn follow-ups and isolated conversation histories.
+- Streamlit UI runs advisers sequentially with progressive rendering — answers appear one by one.
 - Tool calling, RAG, long-term memory, and multi-round debate are not yet implemented.
 - The "Hundred Schools" character and thought settings are simplified interpretations for modern decision-making contexts and do not claim to exhaustively represent each school's philosophy.
