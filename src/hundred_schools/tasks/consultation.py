@@ -6,7 +6,7 @@ from crewai import Agent, Task
 
 
 def create_advice_task(agent: Agent, school: str) -> Task:
-    """Create a concise, school-specific advice task."""
+    """Create a school-specific advice task with Markdown output."""
     return Task(
         description=(
             "Based on the user question below, provide advice consistent with your "
@@ -14,22 +14,16 @@ def create_advice_task(agent: Agent, school: str) -> Task:
             "User question: {question}\n\n"
             f"Your school: {school}\n"
             "Requirements:\n"
-            "1. Respond in English; target 80-150 English words for the body.\n"
-            "2. Use a natural thesis-analysis-conclusion structure: first state the "
-            "core judgment, then provide specific analysis or actionable advice, "
-            "and finally summarize the principle. Do not write structural labels "
-            "such as 'thesis', 'analysis', or 'conclusion'.\n"
-            "3. Must reflect your school's analytical approach and give concrete, "
-            "actionable advice.\n"
+            "1. Respond in English.\n"
+            "2. Use Markdown formatting (headings, bold, bullet points, etc.) "
+            "as appropriate.\n"
+            "3. Provide concrete, actionable advice.\n"
             "4. Do not pretend to represent other schools; do not force alignment "
-            "across different schools' conclusions.\n"
-            "5. Output only the advice body; do not add headings, character counts, "
-            "or Markdown lists."
+            "across different schools' conclusions."
         ),
         expected_output=(
-            f"A piece of English advice, targeting 80-150 English words, "
-            f"structured as thesis-analysis-conclusion, and reflecting the core "
-            f"thought of {school}."
+            f"A piece of advice in English, using Markdown formatting, "
+            f"reflecting the core thought of {school}."
         ),
         agent=agent,
     )

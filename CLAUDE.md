@@ -17,13 +17,13 @@ This is a Python project for learning the CrewAI multi-agent framework. When the
 
 ## Product Behavior
 
-- The first version provides a command-line interface.
+- The first version provides a command-line interface and a Streamlit Web UI.
 - The user question is passed as input to all expert tasks.
 - Each school expresses its position independently; conclusions should not be forced into a single unified answer.
-- Each advice item targets 80–150 English words.
-- Each advice item follows a natural "thesis–analysis–conclusion" structure: first give a core judgment, then provide specific analysis or actionable advice, and finally summarize the principle.
-- Output is in English, with the school name labeled.
-- The character count is a target constraint; outputs that do not meet the range should produce a readable warning or validation result, not silently truncate the body.
+- Output is in English, using Markdown formatting (headings, bold, bullet points, etc.).
+- Output length is not strictly constrained — the model produces advice based on its natural capacity and the question's complexity.
+- The Streamlit UI renders assistant responses as Markdown.
+- The CLI renders raw text output.
 
 ## Agent Thought Frameworks
 
@@ -47,7 +47,7 @@ The above is a simplified role setup for modern decision-making contexts and sho
 - Prefer `Process.sequential` for the first version to reduce concurrency and debugging complexity.
 - Do not turn four experts into four scattered LLM calls just to "look like multi-agent"; achieve it through CrewAI's orchestration abstractions.
 - Keep code clear, well-typed, and avoid over-abstraction.
-- Prompts should clearly specify output format, stance boundaries, and length requirements.
+- Prompts should clearly specify output format, stance boundaries, and encourage Markdown formatting.
 - Allow model configuration via environment variables; do not hardcode any model provider's key in code.
 
 ## Things Not Done in the Current Version

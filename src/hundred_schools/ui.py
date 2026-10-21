@@ -33,10 +33,6 @@ from hundred_schools.agents.experts import (  # noqa: E402
 )
 from hundred_schools.config import Settings  # noqa: E402
 from hundred_schools.crews.council_crew import create_llm  # noqa: E402
-from hundred_schools.models.response import (  # noqa: E402
-    AdviserOpinion,
-    length_warning,
-)
 
 # ---------------------------------------------------------------------------
 # School definitions
@@ -143,11 +139,10 @@ def _system_prompt(school: SchoolDef, agent: Agent) -> str:
         f"Goal: {agent.goal}\n"
         f"Background: {agent.backstory}\n\n"
         f"Requirements:\n"
-        f"1. Respond in English; target 80-150 English words for the body.\n"
-        f"2. Use a natural thesis-analysis-conclusion structure.\n"
+        f"1. Respond in English.\n"
+        f"2. Use Markdown formatting — headings, bullet points, bold, etc.\n"
         f"3. Provide concrete, actionable advice.\n"
-        f"4. Output only the advice body; do not add headings, character counts, "
-        f"or Markdown lists."
+        f"4. Do not pretend to represent other schools."
     )
 
 
@@ -222,7 +217,7 @@ def _render_school_column(school: SchoolDef) -> None:
             if role == "user":
                 st.chat_message("user", avatar="🧑").write(content)
             elif role == "assistant":
-                st.chat_message("assistant", avatar=school.emoji).write(content)
+                st.chat_message("assistant", avatar=school.emoji).markdown(content)
             elif role == "system":
                 st.markdown(f'<p class="sys-msg">{content}</p>', unsafe_allow_html=True)
 
@@ -281,12 +276,6 @@ def _process_pending() -> None:
             agent = agent_map[school.id]
             reply = _call_agent(agent, llm, school, question)
             st.session_state.history[school.id].append({"role": "assistant", "content": reply})
-            opinion = AdviserOpinion(school=school.name, advice=reply)
-            warning = length_warning(opinion)
-            if warning:
-                st.session_state.history[school.id].append(
-                    {"role": "system", "content": f"[Length note] {warning}"}
-                )
         except Exception as exc:
             st.session_state.history[school.id].append(
                 {"role": "system", "content": f"Request failed: {exc}"}

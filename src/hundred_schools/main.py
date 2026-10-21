@@ -9,7 +9,7 @@ from crewai import CrewOutput
 
 from hundred_schools.config import Settings
 from hundred_schools.crews.council_crew import build_council_crew
-from hundred_schools.models.response import AdviserOpinion, length_warning
+from hundred_schools.models.response import AdviserOpinion
 from hundred_schools.observability import setup_langfuse
 
 
@@ -37,9 +37,6 @@ def _print_output(result: CrewOutput) -> None:
         advice = str(task_output.raw).strip()
         opinion = AdviserOpinion(school=school, advice=advice)
         print(f"\n[{opinion.school} Adviser]\n{opinion.advice}")
-        warning = length_warning(opinion)
-        if warning:
-            print(f"  [Length note] {warning}")
 
 
 def main() -> int:

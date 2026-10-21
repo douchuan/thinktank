@@ -10,11 +10,10 @@ A multi-agent learning project built on Python 3.12 and CrewAI. Submit a questio
 
 - Four expert Agents with differentiated perspectives.
 - CrewAI `Agent`, `Task`, `Crew`, and `Process.sequential` orchestration.
-- Pydantic result models for structured output.
-- Target output length: 80–150 English words per school, following a thesis–analysis–conclusion structure.
+- Output in Markdown with each adviser using its own philosophical framework.
 - CLI, Streamlit Web UI, foundational unit tests, Ruff configuration, and `.env.example`.
 
-> Length and structure are guided by prompts and enforced by basic programmatic validation. LLM output is not guaranteed to always meet requirements. The project warns on abnormal lengths rather than silently truncating advice.
+> Advisers are free to produce advice of any length using Markdown formatting (headings, bold, bullet points, etc.). The UI renders Markdown natively.
 
 ## Prerequisites
 
